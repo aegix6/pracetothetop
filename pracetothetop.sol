@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.25;
 
-//COSTON2 =  https://coston2-explorer.flare.network/address/0x6D5d17B81cD0f49A970092326749538a233f4EeF?tab=read_contract
+//COSTON2 =  https://coston2-explorer.flare.network/address/0x5b6b8505c4e53340Ba7bd46Eaea3d4b2dce94F82?tab=read_contract
 
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v5.0/contracts/access/Ownable.sol";
 import {TestFtsoV2Interface} from "@flarenetwork/flare-periphery-contracts/coston2/TestFtsoV2Interface.sol";
@@ -13,7 +13,7 @@ contract PraceToTheTop is Ownable {
 
     uint256 public startTime;
     uint256[8] public startPrices;
-    uint256 public bettingWindow = 100;
+    uint256 public bettingWindow = 1000;
     bool public raceActive;
 
     uint256 public minBet = 1 ether;
@@ -45,6 +45,12 @@ contract PraceToTheTop is Ownable {
     function setFTSO(address _ftsoV2) external onlyOwner {
         ftsoV2 = TestFtsoV2Interface(_ftsoV2);
     }
+ 
+    function setBettingWindow(uint _bettingWindow) external onlyOwner {
+        bettingWindow = _bettingWindow;
+    }
+
+
 
     // Setting minimum and maximum bet range
     function setBetRange(uint256 _minBet, uint256 _maxBet) external onlyOwner {
@@ -86,7 +92,6 @@ contract PraceToTheTop is Ownable {
     // Finishing the race and distributing rewards, then starting a new race
     function finishRace() external onlyOwner {
         require(raceActive, "No active race");
-        require(address(this).balance > 0, "No bets placed");
 
         uint256[] memory endPrices = new uint256[](feedIds.length);
         int256[] memory priceChanges = new int256[](feedIds.length);
@@ -122,17 +127,18 @@ contract PraceToTheTop is Ownable {
             totalWinningBets += currentBets[user][maxChangeIndex];
         }
 
-        require(totalWinningBets > 0, "No winning bets");
-
+        if(totalWinningBets > 0){
         for (uint256 i = 0; i < activeUsers.length; i++) {
-            address user = activeUsers[i];
-            uint256 userBet = currentBets[user][maxChangeIndex];
-            if (userBet > 0) {
-                uint256 payout = (userBet * totalPayout) / totalWinningBets;
-                payable(user).transfer(payout);
-                emit Payout(user, payout);
+                address user = activeUsers[i];
+                uint256 userBet = currentBets[user][maxChangeIndex];
+                if (userBet > 0) {
+                    uint256 payout = (userBet * totalPayout) / totalWinningBets;
+                    payable(user).transfer(payout);
+                    emit Payout(user, payout);
+                }
             }
         }
+ 
 
         emit RaceFinished(maxChangeIndex, maxChange);
 
@@ -147,8 +153,8 @@ contract PraceToTheTop is Ownable {
         startRace(); // Automatically start the next race
     }
 
-    // Start a new race
-    function startRace() internal {
+    // Start a new race - by owner
+    function startRace() public onlyOwner {
         raceActive = true;
         startTime = block.timestamp;
 
@@ -159,7 +165,7 @@ contract PraceToTheTop is Ownable {
         }
     }
 
-    // Viewer function to get all prices formatted as strings with decimals in the correct place
+    // Viewer function to get all prices formatted as strings with decimals
     function getAllPrices() external view returns (string[] memory) {
         string[] memory prices = new string[](feedIds.length);
         for (uint256 i = 0; i < feedIds.length; i++) {
@@ -169,20 +175,34 @@ contract PraceToTheTop is Ownable {
         return prices;
     }
 
+ 
     // Viewer function for getting the current percentage increase, formatted to 4 decimals
     function getCurrentPercentChanges() external view returns (int256[] memory) {
         int256[] memory percentChanges = new int256[](feedIds.length);
-        for (uint256 i = 0; i < feedIds.length; i++) {
-            (uint256 currentPrice, ,) = ftsoV2.getFeedById(feedIds[i]);
+        uint256 scalingFactor = 1e4; // Scaling factor for 4 decimal places
 
+        for (uint256 i = 0; i < feedIds.length; i++) {
+            (uint256 currentPrice,,) = ftsoV2.getFeedById(feedIds[i]);
+
+            // Avoid division by zero if the starting price is zero
+            if (startPrices[i] == 0) {
+                percentChanges[i] = 0;
+                continue;
+            }
+
+            // Calculate percent change with 4 decimal places of precision using uint256
             if (currentPrice >= startPrices[i]) {
-                percentChanges[i] = int256(((currentPrice - startPrices[i]) * 10000) / startPrices[i]);
+                uint256 increase = (currentPrice - startPrices[i]) * scalingFactor * 100 / startPrices[i];
+                percentChanges[i] = int256(increase); // Safe to cast to int256 after calculation
             } else {
-                percentChanges[i] = -int256(((startPrices[i] - currentPrice) * 10000) / startPrices[i]);
+                uint256 decrease = (startPrices[i] - currentPrice) * scalingFactor * 100 / startPrices[i];
+                percentChanges[i] = -int256(decrease); // Safe to cast to int256 after calculation
             }
         }
-        return percentChanges;
+        return percentChanges; // Percentages are now scaled up by 10,000 (e.g., 335555 represents 33.5555%)
     }
+
+
     
     // Helper function to format price with decimals, accounting for positive and negative decimals
     function formatPriceWithDecimals(uint256 price, int8 decimals) internal pure returns (string memory) {
