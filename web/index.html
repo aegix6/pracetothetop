@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prace to the Top</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="horsicon.png" type="image/png">
+
+  <style>
+    /* Page styling */
+    body {
+        font-family: Arial, sans-serif;
+        background: linear-gradient(135deg, #f0f4ff, #d9e9f8);
+        color: #333;
+        margin: 0;
+        padding: 20px;
+    }
+
+    /* Centered container for all content */
+    .container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 80%;
+    }
+
+    /* Button styling */
+    button {
+        background-color: #4CAF50;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 18px;
+        transition: background-color 0.3s ease;
+        margin: 5px;
+    }
+
+    button:hover {
+        background-color: #45a049;
+    }
+
+    /* Headline styling */
+    h2 {
+        font-size: 24px;
+        margin: 10px 0;
+        color: #0056b3;
+    }
+
+    /* Countdown and betting area styling */
+    #countdown {
+        font-size: 20px;
+        color: #333;
+        margin: 15px 0;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background-color: #ffffffc7;
+        width: 100%;
+        max-width: 900px;
+        text-align: center;
+    }
+
+    /* Horse display container styling */
+    .horse-container {
+        width: 80%;
+        max-width: 800px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .horse {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        background-color: #fff;
+        padding: 10px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .horse-name {
+        font-weight: bold;
+        font-size: 16px;
+        color: #333;
+        margin-right: 10px;
+        width: 20%;
+        min-width: 100px;
+    }
+
+    /* Progress track styling */
+    .track {
+        flex-grow: 1;
+        height: 25px;
+        background: #e0e0e0;
+        border-radius: 10px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Runner bar with horse icon styling */
+    .horse-runner {
+        height: 25px;
+        background: linear-gradient(90deg, #00b4d8, #0077b6);
+        border-radius: 10px;
+        position: absolute;
+        top: 0;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 5px;
+    }
+
+    /* Horse icon styling */
+    .horse-icon {
+        width: 20px;
+        height: 20px;
+    }
+
+    /* Input styling */
+    input[type="number"] {
+        padding: 8px;
+        margin: 5px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-size: 16px;
+        width: 70px;
+    }
+</style>
+
+</head>
+<body>
+    <button onclick="connectWallet()">Connect Wallet</button>
+    <br>
+    <div>
+        <h2>Current Prize Pool: <span id="contractBalance">0</span> FLR</h2>
+    </div>
+    <div>
+        <label for="betAmount">Bet Amount (in FLR): </label>
+        <input type="number" id="betAmount" min="1" max="100" step="1" />
+        <label for="coinSelect">Coin Index (0-7): </label>
+        <input type="number" id="coinSelect" min="0" max="7" step="1" />
+        <button onclick="placeBet()">Place Bet</button>
+    </div>
+    <div id="countdown">Betting ends in: <span id="timeLeft">0</span> </div>
+    <br><br>
+    <div id="horseContainer"></div>
+
+    <script src="js/ethers.umd.min.js"></script>
+    <script src="js/praceABI.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        // Adds horse icons and progress display for each horse
+        function displayHorses() {
+            const horseContainer = document.getElementById("horseContainer");
+            horseContainer.innerHTML = ""; // Clear any existing elements once
+
+            horses.forEach((horse, i) => {
+                const horseDiv = document.createElement("div");
+                horseDiv.className = "horse";
+                horseDiv.innerHTML = `
+                    <div class="horse-name" id="horse-name-${i}">${horse.name}: ${horse.price.toString()} FLR (${horse.percent.toString()}%)</div>
+                    <div class="track">
+                        <div class="horse-runner" id="runner-${i}" style="width: 0%;">
+                            <img src="horsicon.png" class="horse-icon" alt="horse icon">
+                        </div>
+                    </div>
+                `;
+                horseContainer.appendChild(horseDiv);
+            });
+        }
+    </script>
+</body>
+</html>
